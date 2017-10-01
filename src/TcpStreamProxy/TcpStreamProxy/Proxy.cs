@@ -1,23 +1,100 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
+using System.Threading.Tasks;
 
 namespace TcpStreamProxy
 {
     public class Proxy : IDisposable
     {
+        private TcpListener _tcpListener = null;
+
+        private IPEndPoint _forwardTo = null;
+
+        private ConcurrentBag<Session> _sessions = new ConcurrentBag<Session>();
+
+        private TcpStreamCopier _streamCopier = null;
+
         public Proxy(IPEndPoint listenOn, IPEndPoint forwardTo)
         {
-            throw new NotImplementedException();
+            _forwardTo = forwardTo;
+
+            _tcpListener = new TcpListener(listenOn);
+
+            _streamCopier = new TcpStreamCopier(_sessions);
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            if (_tcpListener != null)
+            {
+                _tcpListener.Stop();
+                _tcpListener = null;
+            }
+
+            if (_sessions != null)
+            {
+                _sessions.Clear();
+                _sessions = null;
+            }
+
+            _streamCopier.Dispose();
+
+            GC.SuppressFinalize(this);
         }
 
         public void Start()
         {
-            throw new NotImplementedException();
+            _tcpListener.Start();
+            _tcpListener.AcceptSocketAsync().ContinueWith(OnTcpSocketAccept);
+
+            _streamCopier.Start();
+        }
+
+        private void OnTcpSocketAccept(Task<Socket> task)
+        {
+            CreateSession(task.Result);
+
+            AcceptSocketAsync();
+        }
+
+        private void AcceptSocketAsync()
+        {
+            if (_tcpListener != null)
+            {
+                var t = _tcpListener.AcceptSocketAsync();
+                t.ContinueWith(OnTcpSocketAccept);
+            }
+        }
+
+        private void CreateSession(Socket socket)
+        {
+            try
+            {
+                _sessions.Add(
+                    new Session()
+                    {
+                        ClientSocketInfo = ToString(socket),
+                        Client = new NetworkStream(socket, true),
+                        Server = GetNewServerStream()
+                    });
+
+            }
+            catch { }
+        }
+
+        private static string ToString(Socket socket)
+        {
+            var ep = (IPEndPoint)socket.RemoteEndPoint;
+            return $"{ep.Address.ToString()}_{ep.Port.ToString()}";
+        }
+
+        public NetworkStream GetNewServerStream()
+        {
+            var target = new TcpClient();
+            target.Connect(_forwardTo);
+            return target.GetStream();
         }
     }
 }
