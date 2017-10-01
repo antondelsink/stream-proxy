@@ -12,8 +12,11 @@ namespace TcpStreamProxy
 
         private ConcurrentBag<Session> _sessions = new ConcurrentBag<Session>();
 
-        public TcpStreamCopier(ConcurrentBag<Session> sessions)
+        private Action<byte[]> _logger = null;
+
+        public TcpStreamCopier(ConcurrentBag<Session> sessions, Action<byte[]> logger = null)
         {
+            _logger = logger;
             _sessions = sessions;
 
             _backgroundThread = new Thread(new ThreadStart(ProcessClientNetworkStreams))
@@ -43,35 +46,39 @@ namespace TcpStreamProxy
         {
             while (_sessions != null)
             {
-                foreach (var s in _sessions)
+                var localSessions = _sessions;
+                if (localSessions != null)
                 {
-                    try
+                    foreach (var s in localSessions)
                     {
-                        if (!s.ClientAsyncIoInProgress && s.Client.DataAvailable)
+                        try
                         {
-                            s.ClientAsyncIoInProgress = true;
-                            CopyStreamAsync(s.Client, s.Server, s.ClientSendBuffer, s.SetClientAsyncIoInProgressFalse);
+                            if (!s.ClientAsyncIoInProgress && s.Client.DataAvailable)
+                            {
+                                s.ClientAsyncIoInProgress = true;
+                                CopyStreamAsync(s.Client, s.Server, s.ClientSendBuffer, s.SetClientAsyncIoInProgressFalse);
+                            }
                         }
+                        catch { }
                     }
-                    catch { }
-                }
 
-                foreach (var s in _sessions)
-                {
-                    try
+                    foreach (var s in localSessions)
                     {
-                        if (!s.ServerAsyncIoInProgress && s.Server.DataAvailable)
+                        try
                         {
-                            s.ServerAsyncIoInProgress = true;
-                            CopyStreamAsync(s.Server, s.Client, s.ServerSendBuffer, s.SetServerAsyncIoInProgressFalse);
+                            if (!s.ServerAsyncIoInProgress && s.Server.DataAvailable)
+                            {
+                                s.ServerAsyncIoInProgress = true;
+                                CopyStreamAsync(s.Server, s.Client, s.ServerSendBuffer, s.SetServerAsyncIoInProgressFalse);
+                            }
                         }
+                        catch { }
                     }
-                    catch { }
                 }
             }
         }
 
-        private static void CopyStreamAsync(NetworkStream reader, NetworkStream writer, byte[] buffer, Action clearFlagAction)
+        private void CopyStreamAsync(NetworkStream reader, NetworkStream writer, byte[] buffer, Action clearFlagAction)
         {
             var state = new Tuple<NetworkStream, byte[], Action>(writer, buffer, clearFlagAction);
 
@@ -79,7 +86,7 @@ namespace TcpStreamProxy
             readerTask.ContinueWith(OnReadCompleted, state);
         }
 
-        private static void OnReadCompleted(Task<int> readerTask, object objState)
+        private void OnReadCompleted(Task<int> readerTask, object objState)
         {
             var state = (Tuple<NetworkStream, byte[], Action>)objState;
 
@@ -88,6 +95,17 @@ namespace TcpStreamProxy
             var clearFlagAction = state.Item3;
 
             int nBytesRead = readerTask.Result;
+
+            if (_logger != null)
+            {
+                try
+                {
+                    byte[] data = new byte[nBytesRead];
+                    Array.Copy(buffer, 0, data, 0, nBytesRead);
+                    _logger(data);
+                }
+                catch { }
+            }
 
             Task writerTask = writer.WriteAsync(buffer, 0, nBytesRead);
             writerTask.ContinueWith(OnWriteCompleted, clearFlagAction);

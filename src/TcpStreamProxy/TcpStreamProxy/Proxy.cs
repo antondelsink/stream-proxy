@@ -16,13 +16,17 @@ namespace TcpStreamProxy
 
         private TcpStreamCopier _streamCopier = null;
 
-        public Proxy(IPEndPoint listenOn, IPEndPoint forwardTo)
+        private Action<byte[]> _logger = null;
+
+        public Proxy(IPEndPoint listenOn, IPEndPoint forwardTo, Action<byte[]> logger = null)
         {
+            _logger = logger;
+
             _forwardTo = forwardTo;
 
             _tcpListener = new TcpListener(listenOn);
 
-            _streamCopier = new TcpStreamCopier(_sessions);
+            _streamCopier = new TcpStreamCopier(_sessions, _logger);
         }
 
         public void Dispose()
@@ -54,7 +58,14 @@ namespace TcpStreamProxy
 
         private void OnTcpSocketAccept(Task<Socket> task)
         {
-            CreateSession(task.Result);
+            if (!task.IsFaulted)
+            {
+                CreateSession(task.Result);
+            }
+            else
+            {
+
+            }
 
             AcceptSocketAsync();
         }
