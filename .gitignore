@@ -2,4 +2,9 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/src/TcpStreamProxy/TcpStreamProxy/bin/Debug/netcoreapp2.0
+/src/TcpStreamProxy/TcpStreamProxy/bin
+/src/TcpStreamProxy/TcpStreamProxy/obj
+/src/TcpStreamProxy/TcpStreamProxy_Tests/bin
+/src/TcpStreamProxy/TcpStreamProxy_Tests/obj
+/.vs
+/src/TcpStreamProxy/.vs
