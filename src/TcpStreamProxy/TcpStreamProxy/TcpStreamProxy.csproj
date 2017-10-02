@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
+    <Authors>Anton Delsink</Authors>
+    <Description>simple pass-through proxy for inspecting or logging TCP network streams with .NET Core 2</Description>
+    <Copyright>Public Domain</Copyright>
+    <PackageProjectUrl>https://github.com/antondelsink/stream-proxy</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/antondelsink/stream-proxy/blob/master/License.md</PackageLicenseUrl>
+    <PackageTags>.NET Core; TCP; NetworkStream; Proxy;</PackageTags>
   </PropertyGroup>
 
 </Project>

@@ -12,6 +12,18 @@
     <StartupObject />
 
     <RootNamespace>TcpStreamProxy.Tests</RootNamespace>
+
+    <Authors>Anton Delsink</Authors>
+
+    <Company>Anton Delsink</Company>
+
+    <Copyright>Public Domain</Copyright>
+
+    <PackageLicenseUrl>https://github.com/antondelsink/stream-proxy/blob/master/License.md</PackageLicenseUrl>
+
+    <PackageProjectUrl>https://github.com/antondelsink/stream-proxy</PackageProjectUrl>
+
+    <PackageTags>Unit Tests; Proxy; TCP; NetworkStream; .NET Core</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

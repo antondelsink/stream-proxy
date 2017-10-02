@@ -10,11 +10,11 @@ namespace TcpStreamProxy
     {
         private Thread _backgroundThread = null;
 
-        private ConcurrentBag<Session> _sessions = new ConcurrentBag<Session>();
+        private ConcurrentBag<Session> _sessions = null;
 
-        private Action<byte[]> _logger = null;
+        private Action<byte[], int> _logger = null;
 
-        public TcpStreamCopier(ConcurrentBag<Session> sessions, Action<byte[]> logger = null)
+        public TcpStreamCopier(ConcurrentBag<Session> sessions, Action<byte[], int> logger = null)
         {
             _logger = logger;
             _sessions = sessions;
@@ -28,11 +28,14 @@ namespace TcpStreamProxy
 
         public void Start()
         {
+            if (_backgroundThread == null) throw new InvalidOperationException();
+
             _backgroundThread.Start();
         }
 
         public void Dispose()
         {
+            _logger = null;
             _backgroundThread = null;
 
             if (_sessions != null)
@@ -40,6 +43,8 @@ namespace TcpStreamProxy
                 _sessions.Clear();
                 _sessions = null;
             }
+
+            GC.SuppressFinalize(this);
         }
 
         private void ProcessClientNetworkStreams()
@@ -82,8 +87,7 @@ namespace TcpStreamProxy
         {
             var state = new Tuple<NetworkStream, byte[], Action>(writer, buffer, clearFlagAction);
 
-            Task<int> readerTask = reader.ReadAsync(buffer, 0, buffer.Length);
-            readerTask.ContinueWith(OnReadCompleted, state);
+            reader.ReadAsync(buffer, 0, buffer.Length).ContinueWith(OnReadCompleted, state);
         }
 
         private void OnReadCompleted(Task<int> readerTask, object objState)
@@ -100,15 +104,12 @@ namespace TcpStreamProxy
             {
                 try
                 {
-                    byte[] data = new byte[nBytesRead];
-                    Array.Copy(buffer, 0, data, 0, nBytesRead);
-                    _logger(data);
+                    _logger(buffer, nBytesRead); // TODO: Async
                 }
                 catch { }
             }
 
-            Task writerTask = writer.WriteAsync(buffer, 0, nBytesRead);
-            writerTask.ContinueWith(OnWriteCompleted, clearFlagAction);
+            writer.WriteAsync(buffer, 0, nBytesRead).ContinueWith(OnWriteCompleted, clearFlagAction);
         }
 
         private static void OnWriteCompleted(Task t, object objState)

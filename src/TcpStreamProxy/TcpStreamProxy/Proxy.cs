@@ -16,9 +16,9 @@ namespace TcpStreamProxy
 
         private TcpStreamCopier _streamCopier = null;
 
-        private Action<byte[]> _logger = null;
+        private Action<byte[], int> _logger = null;
 
-        public Proxy(IPEndPoint listenOn, IPEndPoint forwardTo, Action<byte[]> logger = null)
+        public Proxy(IPEndPoint listenOn, IPEndPoint forwardTo, Action<byte[], int> logger = null)
         {
             _logger = logger;
 
@@ -43,7 +43,11 @@ namespace TcpStreamProxy
                 _sessions = null;
             }
 
-            _streamCopier.Dispose();
+            if (_streamCopier != null)
+            {
+                _streamCopier.Dispose();
+                _streamCopier = null;
+            }
 
             GC.SuppressFinalize(this);
         }
@@ -58,14 +62,7 @@ namespace TcpStreamProxy
 
         private void OnTcpSocketAccept(Task<Socket> task)
         {
-            if (!task.IsFaulted)
-            {
-                CreateSession(task.Result);
-            }
-            else
-            {
-
-            }
+            CreateSession(task.Result);
 
             AcceptSocketAsync();
         }
@@ -74,8 +71,7 @@ namespace TcpStreamProxy
         {
             if (_tcpListener != null)
             {
-                var t = _tcpListener.AcceptSocketAsync();
-                t.ContinueWith(OnTcpSocketAccept);
+                _tcpListener.AcceptSocketAsync().ContinueWith(OnTcpSocketAccept);
             }
         }
 
